@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Maddy - tuzha voice assistant</title>
-<meta name="description" content="Maddy - ek free, open voice assistant. Reminders, timers, gaani ani AI answers.">
+<meta name="description" content="Maddy - ek free, open voice assistant. Reminders, timers, todo, weather, batmya, gaani ani AI answers.">
 <meta name="theme-color" content="#73a89a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -41,7 +41,7 @@
     <div class="chat" id="chat" aria-live="polite"></div>
     <div class="chips" id="chips"></div>
     <div class="inputrow">
-      <input id="input" type="text" placeholder='Ithe type kar... ("timer 2 minute", "play song", kai pan vichar)' aria-label="Command type kar" autocomplete="off">
+      <input id="input" type="text" placeholder='Ithe type kar... ("timer 2 minute", "weather Pune", "batmya", kai pan vichar)' aria-label="Command type kar" autocomplete="off">
       <button type="button" id="send">Send</button>
     </div>
     <p class="ainote" id="ainote" hidden>AI answer: free API (text.pollinations.ai) - personal mahiti taku nako.</p>
@@ -59,24 +59,26 @@
   </section>
 
   <section class="group">
-    <h2>Hey Maddy kai kai karte</h2>
+    <h2>Maddy che 7 features (Alexa sarkhe)</h2>
     <ol class="feats">
-      <li><strong>Voice in / voice out</strong> - mic dabun bol (Marathi/Hindi/English), Maddy bolun uttar dete. "Hey Maddy" mode app ughada astana aikta.</li>
-      <li><strong>Reminders, timer, alarm</strong> - "Athavan karun de 9 vajta study", "timer lav 5 min", "alarm sakali 7 vajta". Offline chaltat.</li>
-      <li><strong>AI prashna-uttar</strong> - kai pan vichar. Free API; internet nahi tar baki sagla chalta.</li>
-      <li><strong>Music</strong> - "Kesariya play kar" mhan, YouTube ughadto.</li>
-      <li><strong>Mini calendar</strong> - aaj ani reminder divas ekatra.</li>
+      <li><strong>1. Voice in / voice out</strong> - mic dabun bol (Marathi/Hindi/English), Maddy bolun uttar dete. "Hey Maddy" mode app ughada astana aikta.</li>
+      <li><strong>2. Music ani podcast</strong> - "Kesariya play kar" kiwa "podcast" mhan, YouTube navin tab madhe ughadto.</li>
+      <li><strong>3. Alarm, timer, reminder, to-do</strong> - "alarm sakali 7 vajta", "timer lav 5 min", "athavan karun de 9 vajta study", "todo add kar: resume update". Offline chaltat.</li>
+      <li><strong>4. Weather, batmya, prashna-uttar</strong> - "weather Pune", "batmya sang", kiwa kai pan vichar (free AI API).</li>
+      <li><strong>5. Smart home</strong> - honest uttar: hya sathi hardware lagto (smart bulb/Echo), te free nahi mhanun app madhe nahi. Vicharles tar Maddy swatah sangte.</li>
+      <li><strong>6. Calls ani messages</strong> - "call 98XXXXXXXX" kiwa "sms 98XXXXXXXX" mhan: Maddy button banavte, tu dab ki tuzya phone cha dialer/messaging app ughadto. Maddy swataha konaalai call/message karat nahi.</li>
+      <li><strong>7. Shopping list ani skills</strong> - "shopping madhe tak: dudh", "shopping list dakav". Skills: "joke sang", "motivation de", "study timer suru kar" (25 min focus).</li>
     </ol>
   </section>
 
   <aside class="privacy">
     <h2>Privacy thodkyat</h2>
-    <p>Tuza sagla data (reminders vagere) fakt tujhya device var rahato - amchakade server ch nahi. Mic cha aawaz tujhya browser chi speech service process karte (Chrome madhe Google). AI prashna free API la jato, mhanun personal/secret mahiti taku nako. <a href="privacy.html">Full privacy policy</a>.</p>
+    <p>Tuza sagla data (reminders, todo, shopping list) fakt tujhya device var rahato - amchakade server ch nahi. Mic cha aawaz tujhya browser chi speech service process karte (Chrome madhe Google). AI prashna free API la jato; weather sathi fakt shaharaache naav open-meteo la jate; batmya fetch madhe tujhi kahi mahiti jat nahi. Personal/secret mahiti AI prashnat taku nako. <a href="privacy.html">Full privacy policy</a>.</p>
   </aside>
 
   <footer class="foot">
     <p>Made with love by <strong>Maddy</strong></p>
-    <p class="cap">v2.0 - free ani open - <a href="privacy.html">Privacy</a></p>
+    <p class="cap">v3.0 - free ani open - <a href="privacy.html">Privacy</a></p>
   </footer>
 </main>
 <script src="app.js"></script>

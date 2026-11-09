@@ -1,21 +1,36 @@
-/* Maddy v2.0 - tuzha swatacha assistant. 100% client-side, no server. */
+/* Maddy v3.0 - tuzha swatacha assistant. 100% client-side, no server. */
 (function () {
   'use strict';
 
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
   var WAKE_RE = /(hey|he|hi|ok|okay)?\s*maddy/i;
   var CHIPS = [
-    'Maddy, aaj konti tarikh?',
+    'Weather Pune',
+    'Batmya sang',
+    'Todo add kar: project complete',
     'Timer lav 5 min',
-    'Athavan karun de 9 vajta study',
-    'Kesariya play kar',
-    'Mazya reminders dakav',
-    'Joke sang na'
+    'Motivation de',
+    'Maddy, aaj konti tarikh?'
   ];
   var JOKES = [
     'Teacher: Maddy, tu class madhe zopli hotis? Maddy: Nahi sir, mi dole band karun concentrate karat hote!',
     'Wifi ani prem sarkhech asta - signal jawal astana sagla chhann chalta, dur gel ki connection cut!',
     'Programmer la vicharla: tu ratri ka jagto? To mhantoy: bugs la hi zopayacha asta ka mhanun!'
+  ];
+  var QUOTES = [
+    'Rejections temporary ahet, tu permanent ahes. Aaj chi mehnat udyacha offer letter ahe. Chal, ajun ek chapter!',
+    'Harat nahi mhanje jit. Pratyek "not selected" tula thoda ajun strong banavta. Pudhe chal, Maddy!',
+    'Solapur hun Pune, Pune hun company - pravas haaluch pahu, pan thambu nako. Tu karu shaktes.',
+    'English bolayala ghabru nako. Roz ek vakya bol - mahinyat farak disel.',
+    'Lahan steps, motha result. Aaj fakt 25 min focused study - bas itka target.'
+  ];
+  var WMO = [
+    [0, 'ekdam swachh akash'], [1, 'jawaljawal swachh'], [2, 'thode dagal'], [3, 'purna dagal'],
+    [45, 'dhuke'], [48, 'dhuke'], [51, 'halka sar'], [53, 'sar'], [55, 'joadsar sar'],
+    [61, 'halka paus'], [63, 'paus'], [65, 'jodar paus'], [66, 'gar paus'], [67, 'gar paus'],
+    [71, 'himi varkh'], [73, 'himi varkh'], [75, 'jodar himi varkh'], [77, 'himi varkh'],
+    [80, 'halkya sar'], [81, 'sar'], [82, 'jodar sar'], [85, 'himi sar'], [86, 'himi sar'],
+    [95, 'vijanicha paus'], [96, 'gar-paus'], [99, 'gar-paus']
   ];
 
   var chat = document.getElementById('chat');
@@ -31,10 +46,20 @@
 
   var reminders = [];
   try { reminders = JSON.parse(localStorage.getItem('maddy-reminders.v1') || '[]'); } catch (e) { reminders = []; }
+  var todos = [];
+  try { todos = JSON.parse(localStorage.getItem('maddy-todos.v1') || '[]'); } catch (e) { todos = []; }
+  var shopping = [];
+  try { shopping = JSON.parse(localStorage.getItem('maddy-shopping.v1') || '[]'); } catch (e) { shopping = []; }
   var timers = [];
 
   function saveReminders() {
     try { localStorage.setItem('maddy-reminders.v1', JSON.stringify(reminders)); } catch (e) { /* private mode */ }
+  }
+  function saveTodos() {
+    try { localStorage.setItem('maddy-todos.v1', JSON.stringify(todos)); } catch (e) { /* ignore */ }
+  }
+  function saveShopping() {
+    try { localStorage.setItem('maddy-shopping.v1', JSON.stringify(shopping)); } catch (e) { /* ignore */ }
   }
 
   function detectLang(text) {
@@ -77,6 +102,37 @@
     chat.scrollTop = chat.scrollHeight;
   }
 
+  function bubbleLink(text, url, linkLabel) {
+    var d = document.createElement('div');
+    d.className = 'bubble maddy';
+    var s = document.createElement('span');
+    s.textContent = text + ' ';
+    var a = document.createElement('a');
+    a.href = url;
+    a.textContent = linkLabel;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    d.appendChild(s);
+    d.appendChild(a);
+    chat.appendChild(d);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function speakOnly(text, lang) {
+    try {
+      var useLang = lang || detectLang(text);
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = useLang;
+      var v = pickVoice(useLang);
+      if (v) u.voice = v;
+      setStatus('speaking');
+      u.onend = function () { setStatus('idle'); };
+      u.onerror = function () { setStatus('idle'); };
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch (e) { setStatus('idle'); }
+  }
+
   function say(text, lang) {
     bubble('maddy', text);
     try {
@@ -115,6 +171,63 @@
     return new Date(ts).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   }
 
+  function wmoText(code) {
+    var best = 'baddal akash';
+    for (var i = 0; i < WMO.length; i++) { if (WMO[i][0] <= code) best = WMO[i][1]; }
+    return best;
+  }
+
+  function weatherFor(raw, lang) {
+    var city = 'Pune';
+    var m = raw.match(/(?:weather|havan|havaman|tapman|paus)\s+(?:che\s+|madhe\s+|at\s+|in\s+|of\s+)?([a-zA-Z\u0900-\u097F][a-zA-Z\u0900-\u097F ]{1,25})/i);
+    if (m) {
+      var cand = m[1].replace(/\s+(madhe|che|ahe|kay|kasa|kashi|sang|batav)$/i, '').trim();
+      if (cand && !/^(aaj|aata|kay|che|madhe|sang)$/i.test(cand)) city = cand;
+    }
+    var m2 = raw.match(/([a-zA-Z\u0900-\u097F ]+)\s+(madhe|che)\s+(weather|havan|havaman|tapman)/i);
+    if (m2) city = m2[1].trim();
+    setStatus('thinking');
+    fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&language=mr&format=json')
+      .then(function (r) { return r.json(); })
+      .then(function (g) {
+        if (!g || !g.results || !g.results.length) throw new Error('nocity');
+        var c = g.results[0];
+        return fetch('https://api.open-meteo.com/v1/forecast?latitude=' + c.latitude + '&longitude=' + c.longitude +
+          '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto')
+          .then(function (r) { return r.json(); })
+          .then(function (w) { return { c: c, w: w }; });
+      })
+      .then(function (x) {
+        var cur = x.w.current, d = x.w.daily;
+        var msg = x.c.name + ' (' + (x.c.country || '') + '): aata ' + Math.round(cur.temperature_2m) + '°C, ' + wmoText(cur.weather_code) +
+          '. Anubhav ' + Math.round(cur.apparent_temperature) + '°C, aardrata ' + cur.relative_humidity_2m + '%.' +
+          ' Aaj max ' + Math.round(d.temperature_2m_max[0]) + '° / min ' + Math.round(d.temperature_2m_min[0]) +
+          '°, paus chi shakyata ' + (d.precipitation_probability_max ? d.precipitation_probability_max[0] : 0) + '%.';
+        say(msg, lang);
+        setStatus('idle');
+      })
+      .catch(function () {
+        say('Weather aata milala nahi - internet check kar kiwa thodya velane parat vichar.', lang);
+        setStatus('idle');
+      });
+  }
+
+  function news(lang) {
+    setStatus('thinking');
+    fetch('https://saurav.tech/NewsAPI/top-headlines/category/general/in.json')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var arts = (data.articles || []).filter(function (a) { return a && a.title; }).slice(0, 5);
+        if (!arts.length) throw new Error('none');
+        say('Aaj chya top batmya: ' + arts.map(function (a, i) { return (i + 1) + ') ' + a.title; }).join(' '), lang);
+        setStatus('idle');
+      })
+      .catch(function () {
+        say('Batmya aata milalya nahi - internet check kar kiwa thodya velane parat vichar.', lang);
+        setStatus('idle');
+      });
+  }
+
   function aiAnswer(q) {
     setStatus('thinking');
     var prompt = 'You are Maddy, a warm personal voice assistant. Answer in the same language the question is written in (Marathi, Hindi or English). Keep the answer short, under 60 words, friendly. Question: ' + q;
@@ -144,7 +257,7 @@
     var t = raw.toLowerCase().replace(WAKE_RE, '').trim() || raw.toLowerCase();
     var lang = detectLang(raw);
 
-    if (/timer|टायमर/.test(t)) {
+    if (/timer|टायमर/.test(t) && !/study|abhyas|pomodoro/.test(t)) {
       var m = t.match(/(\d+)\s*(sec|second|min|mint|minute|hour|hr|tas)?/);
       var n = m ? parseInt(m[1], 10) : 1;
       var unit = m && m[2] ? m[2] : 'min';
@@ -152,6 +265,12 @@
       timers.push({ id: 't' + Date.now(), label: n + ' ' + unit, endsAt: Date.now() + ms });
       renderChalu();
       say('Timer laavla: ' + n + ' ' + unit + '.', lang);
+      return;
+    }
+    if (/(study|abhyas|pomodoro)/.test(t) && /(timer|suru|start|session|pomodoro)/.test(t)) {
+      timers.push({ id: 't' + Date.now(), label: 'Study 25 min', endsAt: Date.now() + 25 * 60000 });
+      renderChalu();
+      say('Study timer 25 min laavla - phone bajula, focus study var! Timer zali ki mi sangen.', lang);
       return;
     }
     if (/alarm|अलार्म/.test(t)) {
@@ -187,6 +306,134 @@
         : 'Aata kahi reminders nahit.', lang);
       return;
     }
+
+    // To-do list
+    if (/(todo|to-do|task|kama|kam list)/.test(t) && /(add|tak|ghaal|navin)/.test(t)) {
+      var item = raw.replace(/^(hey |he )?maddy[,.]?/i, '')
+        .replace(/todo|to-do|task|kam|kama|add|tak|ghaal|navin|list|madhe|mala|karun de|kar/gi, '')
+        .replace(/^[:\-\s]+/, '').replace(/\s+/g, ' ').trim();
+      if (item) {
+        todos.push({ id: 'td' + Date.now(), text: item, done: false });
+        saveTodos();
+        renderChalu();
+        say('Todo madhe takla: "' + item + '". Ekun ' + todos.filter(function (x) { return !x.done; }).length + ' kama ureglit.', lang);
+      } else say('Kay add karu? Jaise "todo add kar: resume update".', lang);
+      return;
+    }
+    if (/(todo|to-do|tasks?|kama)/.test(t) && /(dakhav|dakav|list|mazya|majya|sang|kay ahe)/.test(t)) {
+      var open = todos.filter(function (x) { return !x.done; });
+      say(open.length
+        ? 'Tuzya todo list: ' + open.map(function (x, i) { return (i + 1) + ') ' + x.text; }).join('; ')
+        : 'Todo list rickami ahe. "todo add kar: ..." mhanun navin tak.', lang);
+      return;
+    }
+    if (/(purna|zala|zali|done|complete|kela|keli)/.test(t) && /(todo|kam|task|\d)/.test(t) && !/timer|alarm/.test(t)) {
+      var openT = todos.filter(function (x) { return !x.done; });
+      var hit = null;
+      var numM = t.match(/(\d+)/);
+      if (numM && openT[parseInt(numM[1], 10) - 1]) hit = openT[parseInt(numM[1], 10) - 1];
+      if (!hit) {
+        var probe = t.replace(/purna|zala|zali|done|complete|kela|keli|todo|kam|task|maze|majhe|maza|mazi|\d+/g, '').trim();
+        if (probe) {
+          for (var ti = 0; ti < openT.length; ti++) {
+            if (openT[ti].text.toLowerCase().indexOf(probe) !== -1) { hit = openT[ti]; break; }
+          }
+        }
+      }
+      if (hit) {
+        hit.done = true;
+        saveTodos();
+        renderChalu();
+        say('Shabash! "' + hit.text + '" purna zala. Ureglit: ' + todos.filter(function (x) { return !x.done; }).length + '.', lang);
+      } else say('Konte kam purna zale? "mazya todo dakav" mhanun number bagh, mag "todo 1 done".', lang);
+      return;
+    }
+
+    // Shopping list (free local version)
+    if (/shopping|kharedi/.test(t) && /(list|dakhav|dakav|sang)/.test(t) && !/add|tak|ghaal/.test(t)) {
+      var openS = shopping.filter(function (x) { return !x.done; });
+      say(openS.length
+        ? 'Shopping list: ' + openS.map(function (x, i) { return (i + 1) + ') ' + x.text; }).join('; ')
+        : 'Shopping list rickami ahe. "shopping madhe tak: ..." mhanun add kar.', lang);
+      return;
+    }
+    if (/(shopping|kharedi)/.test(t) && /(add|tak|ghaal)/.test(t)) {
+      var sItem = raw.replace(/^(hey |he )?maddy[,.]?/i, '')
+        .replace(/shopping|kharedi|list|madhe|add|tak|ghaal|mala|karun de|kar/gi, '')
+        .replace(/^[:\-\s]+/, '').replace(/\s+/g, ' ').trim();
+      if (sItem) {
+        shopping.push({ id: 'sh' + Date.now(), text: sItem, done: false });
+        saveShopping();
+        say('Shopping list madhe takla: "' + sItem + '".', lang);
+      } else say('Kay gheychay? Jaise "shopping madhe tak: dudh".', lang);
+      return;
+    }
+    if (/(shopping|kharedi)/.test(t) && /(purna|zala|zali|done|ghetla|ghetli)/.test(t)) {
+      var probeS = t.replace(/shopping|kharedi|list|madhe|purna|zala|zali|done|ghetla|ghetli/g, '').trim();
+      var openS2 = shopping.filter(function (x) { return !x.done; });
+      var hitS = null;
+      for (var si = 0; si < openS2.length; si++) {
+        if (probeS && openS2[si].text.toLowerCase().indexOf(probeS) !== -1) { hitS = openS2[si]; break; }
+      }
+      if (hitS) {
+        hitS.done = true;
+        saveShopping();
+        say('"' + hitS.text + '" ghetla - list madhun kadhla.', lang);
+      } else say('Kay ghetlas? "shopping list dakav" mhanun bagh.', lang);
+      return;
+    }
+
+    // Weather
+    if (/(weather|havan|havaman|tapman|temperature|paus)/.test(t) && !/remind|athavan/.test(t)) {
+      weatherFor(raw, lang);
+      return;
+    }
+    // News
+    if (/(batmya|batmi|news|headline|khabar|samachar)/.test(t)) {
+      news(lang);
+      return;
+    }
+    // Calls / messages (free honest version: opens the phone's own apps)
+    if (/(call|dial|phone kar|फोन)/.test(t)) {
+      var numM2 = raw.match(/(\+?\d[\d\s\-()]{6,16}\d)/);
+      if (numM2) {
+        var num = numM2[1].replace(/[\s\-()]/g, '');
+        bubbleLink(num + ' var call karnyasathi he daba:', 'tel:' + num, 'Call ' + num);
+        speakOnly('Call button tayar ahe - dab ki tuzya phone cha dialer ughdel.', lang);
+      } else {
+        say('Konala call karaycha? Number sang - "call 98XXXXXXXX". Mi call button banavte, tu dab ki phone app ughadta. Swataha call karu shakat nahi - te phakt tuzya hatat ahe.', lang);
+      }
+      return;
+    }
+    if (/(sms|message|messege|mesej)/.test(t) && !/whatsapp/.test(t)) {
+      var numM3 = raw.match(/(\+?\d[\d\s\-()]{6,16}\d)/);
+      if (numM3) {
+        var num3 = numM3[1].replace(/[\s\-()]/g, '');
+        bubbleLink(num3 + ' la SMS karnyasathi he daba:', 'sms:' + num3, 'SMS ' + num3);
+        speakOnly('SMS button tayar ahe - dab ki messaging app ughdel.', lang);
+      } else {
+        say('Konala SMS? Number sang - "sms 98XXXXXXXX". Mi SMS button banavte - tu dab ki tuzya phone cha messaging app ughadta.', lang);
+      }
+      return;
+    }
+    // Smart home (honest: needs hardware)
+    if (/(smart home|light|batam|bulb|fan chalu|fan band|tubelight|ac chalu|ac band)/.test(t)) {
+      say('Smart home control sathi hardware lagto - Alexa Echo kiwa smart bulb/plug (Google Home). Te free nahi, mhanun app madhe te add kele nahi. Paise jama zale ki smart bulb ghe - mag phone pasun light/fan chalavta yetil!', lang);
+      return;
+    }
+    // Skills
+    if (/(skills?|skill list)/.test(t)) {
+      say('Mazya skills: jokes ("joke sang"), motivation ("motivation de"), study timer 25 min ("study timer suru kar"), weather, batmya, reminders, todo, shopping list, music, prashna-uttar. Roz navin add hoteil!', lang);
+      return;
+    }
+    if (/(motivation|himmat|hosla|inspire|quote|utsah)/.test(t)) {
+      say(QUOTES[Math.floor(Math.random() * QUOTES.length)], lang);
+      return;
+    }
+    if (/help|madad|kay karu shaktes|kay karte|features/.test(t)) {
+      say('Mi he sagla karte: 1) voice bolne-aikne, "Hey Maddy" mode 2) gaani/podcast (YouTube) 3) alarm, timer, reminder, to-do 4) weather, batmya, prashna-uttar 5) call/SMS buttons 6) shopping list 7) skills - jokes, motivation, study timer. Bol kiwa type kar!', lang);
+      return;
+    }
     if (/tarikh|taarikh|date|आज कोंती|aaj kay|aaj konti/.test(t) && !/play|gaan/.test(t)) {
       var d = new Date();
       say('Aaj ' + d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ' ahe.', lang);
@@ -194,6 +441,12 @@
     }
     if (/kiti vajle|time kay|vel kay|what time|वेळ/.test(t)) {
       say('Aata ' + fmtTime(Date.now()) + ' vajle ahet.', lang);
+      return;
+    }
+    if (/podcast/.test(t)) {
+      var pq = raw.replace(/^(hey |he )?maddy[,.]?/i, '').replace(/podcast|play|vajav|sang|mala|aikaycha|aiku/gi, '').replace(/\s+/g, ' ').trim();
+      window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent((pq ? pq + ' ' : '') + 'podcast marathi'), '_blank');
+      say('YouTube var podcast ughadla - navin tab bagh!', lang);
       return;
     }
     if (/play|gaan|gane|song|music|lav|वाजव/.test(t) && !/timer/.test(t)) {
@@ -213,11 +466,11 @@
       return;
     }
     if (/tu kon|who are you|tuz nav|tuzha nav|about/.test(t)) {
-      say('Mi Maddy - tuzha swatacha voice assistant. Reminders, timer, gaani ani prashnanchi uttar dete. Free, offline-first, server nahi!', lang);
+      say('Mi Maddy - tuzha swatacha voice assistant. Reminders, timer, todo, weather, batmya, gaani ani prashnanchi uttar dete. Free, offline-first, server nahi!', lang);
       return;
     }
     if (/^(hi|hello|hey|namaskar|namaste|kay boltes|kay chalu)\b/.test(t)) {
-      say('Namaskar! Bol, kay madat karu? Timer, reminder, gaana ki prashna - kahihi vichar.', lang);
+      say('Namaskar! Bol, kay madat karu? Timer, reminder, weather, batmya, gaana ki prashna - kahihi vichar.', lang);
       return;
     }
     aiAnswer(raw);
@@ -308,7 +561,8 @@
     var now = Date.now();
     var activeT = timers.filter(function (x) { return !x.done; });
     var activeR = reminders.filter(function (r) { return !r.done; }).sort(function (a, b) { return a.at - b.at; });
-    group.hidden = activeT.length + activeR.length === 0;
+    var openTodo = todos.filter(function (x) { return !x.done; });
+    group.hidden = activeT.length + activeR.length + openTodo.length === 0;
     activeT.forEach(function (x) {
       var left = Math.max(0, Math.round((x.endsAt - now) / 1000));
       var mm = Math.floor(left / 60), ss = left % 60;
@@ -331,6 +585,17 @@
       var v = document.createElement('span');
       v.className = 'v';
       v.textContent = 'Reminder';
+      li.appendChild(span); li.appendChild(v);
+      ul.appendChild(li);
+    });
+    openTodo.forEach(function (x, i) {
+      var li = document.createElement('li');
+      var span = document.createElement('span');
+      span.innerHTML = '<strong></strong><small>To-do - "todo ' + (i + 1) + ' done" mhanun purna kar</small>';
+      span.querySelector('strong').textContent = (i + 1) + '. ' + x.text;
+      var v = document.createElement('span');
+      v.className = 'v';
+      v.textContent = 'To-do';
       li.appendChild(span); li.appendChild(v);
       ul.appendChild(li);
     });
@@ -390,7 +655,7 @@
   }
 
   // Init
-  bubble('maddy', 'Namaskar! Mi Maddy - tuzha swatacha assistant. Mic dabun bol kiwa type kar - timer, reminder, gaana, prashna, kahihi!');
+  bubble('maddy', 'Namaskar! Mi Maddy - tuzha swatacha assistant. Mic dabun bol kiwa type kar - timer, reminder, todo, weather, batmya, gaana, prashna, kahihi!');
   renderChalu();
   renderCal();
 })();

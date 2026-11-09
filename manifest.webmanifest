@@ -1,7 +1,7 @@
 {
   "name": "Maddy - voice assistant",
   "short_name": "Maddy",
-  "description": "Tuzha swatacha voice assistant - reminders, timers, gaani ani AI answers. Free, offline-first.",
+  "description": "Tuzha swatacha voice assistant - reminders, timers, todo, weather, batmya, gaani ani AI answers. Free, offline-first.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
