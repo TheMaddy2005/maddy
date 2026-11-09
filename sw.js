@@ -1,4 +1,4 @@
-const CACHE = 'maddy-v3.1.0';
+const CACHE = 'maddy-v3.2.0';
 const SHELL = [
   './',
   './index.html',

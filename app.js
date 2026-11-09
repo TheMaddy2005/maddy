@@ -1,4 +1,4 @@
-/* Maddy v3.1 - tuzha swatacha assistant. 100% client-side, no server. */
+/* Maddy v3.2 - tuzha swatacha assistant. 100% client-side, no server. */
 (function () {
   'use strict';
 
